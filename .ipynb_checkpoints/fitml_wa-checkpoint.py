@@ -1,6 +1,5 @@
 import os
 import tensorflow as tf
-import tensorflow_hub as hub
 import numpy as np
 import imageio
 from PIL import Image, ImageDraw
