@@ -1,12 +1,12 @@
 import os
 import numpy as np
 import tflite_runtime.interpreter as tflite
+import cv2
 from PIL import Image, ImageDraw
 import streamlit as st
 from tempfile import NamedTemporaryFile
-import subprocess
 
-# Load the model
+# Load the TFLite model
 model_path = "/mount/src/fitml_published/movenet.tflite"
 st.write(f"Attempting to load model from: {model_path}")
 
@@ -41,7 +41,6 @@ def movenet_predict(image, interpreter):
     return keypoints
 
 def calculate_angle(a, b, c):
-    """Calculates the angle between three points for pose landmarks."""
     a, b, c = np.array(a[:2]), np.array(b[:2]), np.array(c[:2])
     radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
     angle = np.abs(radians * 180.0 / np.pi)
@@ -80,51 +79,54 @@ if uploaded_file:
 
     output_video_path = NamedTemporaryFile(delete=False, suffix=".mp4").name
 
-    ffmpeg_input_cmd = [
-        'ffmpeg', '-i', input_video_path, '-f', 'image2pipe', '-vcodec', 'rawvideo',
-        '-pix_fmt', 'rgb24', '-'
-    ]
+    cap = cv2.VideoCapture(input_video_path)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
 
-    ffmpeg_output_cmd = [
-        'ffmpeg', '-y', '-f', 'rawvideo', '-vcodec', 'rawvideo', '-pix_fmt', 'rgb24',
-        '-s', '640x480', '-r', '30', '-i', '-', output_video_path
-    ]
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
-    with subprocess.Popen(ffmpeg_input_cmd, stdout=subprocess.PIPE) as proc_input, \
-         subprocess.Popen(ffmpeg_output_cmd, stdin=subprocess.PIPE) as proc_output:
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    progress_bar = st.progress(0)
+    frame_count = 0
 
-        frame_size = 640 * 480 * 3
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-        while True:
-            raw_frame = proc_input.stdout.read(frame_size)
-            if not raw_frame:
-                break
+        frame_rgb = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
-            frame = np.frombuffer(raw_frame, np.uint8).reshape((480, 640, 3))
+        keypoints = movenet_predict(frame_rgb, interpreter)
 
-            frame_rgb = Image.fromarray(frame)
-            keypoints = movenet_predict(frame_rgb, interpreter)
+        if exercise_type == "Squat":
+            angle, depth = analyze_squat(keypoints)
+        elif exercise_type == "Bench Press":
+            angle, depth = analyze_bench(keypoints)
+        elif exercise_type == "Deadlift":
+            angle, depth = analyze_deadlift(keypoints)
 
-            if exercise_type == "Squat":
-                angle, depth = analyze_squat(keypoints)
-            elif exercise_type == "Bench Press":
-                angle, depth = analyze_bench(keypoints)
-            elif exercise_type == "Deadlift":
-                angle, depth = analyze_deadlift(keypoints)
+        draw = ImageDraw.Draw(frame_rgb)
+        draw.text((50, 50), f'Angle: {int(angle)}', fill=(255, 255, 255))
+        draw.text((50, 100), depth, fill=(0, 255, 0))
 
-            draw = ImageDraw.Draw(frame_rgb)
-            draw.text((50, 50), f'Angle: {int(angle)}', fill=(255, 255, 255))
-            draw.text((50, 100), depth, fill=(0, 255, 0))
+        for i, (y, x, c) in enumerate(keypoints):
+            if c > 0.5:
+                draw.ellipse((x * frame_rgb.width - 5, y * frame_rgb.height - 5,
+                              x * frame_rgb.width + 5, y * frame_rgb.height + 5),
+                             fill=(0, 255, 0))
 
-            for i, (y, x, c) in enumerate(keypoints):
-                if c > 0.5:
-                    draw.ellipse((x * frame_rgb.width - 5, y * frame_rgb.height - 5,
-                                  x * frame_rgb.width + 5, y * frame_rgb.height + 5),
-                                 fill=(0, 255, 0))
+        frame_processed = cv2.cvtColor(np.array(frame_rgb), cv2.COLOR_RGB2BGR)
 
-            proc_output.stdin.write(np.array(frame_rgb).tobytes())
+        out.write(frame_processed)
+        
+        frame_count += 1
+        progress_bar.progress(frame_count / total_frames)
 
-    # download button
+    cap.release()
+    out.release()
+
     with open(output_video_path, "rb") as file:
         st.download_button(
             label="Download Analyzed Video",

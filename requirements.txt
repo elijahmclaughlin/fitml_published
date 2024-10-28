@@ -2,3 +2,4 @@ streamlit
 tflite-runtime
 numpy<2.0.0
 Pillow
+opencv-python-headless
