@@ -4,9 +4,24 @@ import imageio
 from PIL import Image, ImageDraw
 import streamlit as st
 from tempfile import NamedTemporaryFile
+import os
+
+st.write("Files in current directory:", os.listdir('.'))
+
+import os
+
+path_to_model = os.path.join(os.path.dirname(__file__), "movenet.tflite")
+st.write(f"Model path being used: {path_to_model}")
+
+if os.path.isfile(path_to_model):
+    interpreter = tflite.Interpreter(model_path=path_to_model)
+    interpreter.allocate_tensors()
+else:
+    st.error(f"Model file not found at {path_to_model}")
+
 
 def load_movenet_model():
-    interpreter = tflite.Interpreter(model_path="python_projs/fitml_published/movenet.tflite")
+    interpreter = tflite.Interpreter(model_path=path_to_model)
     interpreter.allocate_tensors()
     return interpreter
 
