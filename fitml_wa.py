@@ -11,6 +11,20 @@ st.write(f"Attempting to load model from: {model_path}")
 
 model_path = "/mount/src/fitml_published/movenet.tflite"
 
+def load_model(model_path):
+    """Attempts to load the TensorFlow Lite model and returns the interpreter if successful."""
+    st.write(f"Attempting to load model from: {model_path}")
+    try:
+        interpreter = tflite.Interpreter(model_path=model_path)
+        interpreter.allocate_tensors()
+        st.success("Model loaded successfully!")
+        return interpreter
+    except FileNotFoundError:
+        st.error(f"Model file not found at {model_path}. Please verify the path.")
+    except Exception as e:
+        st.error(f"Failed to load the model: {e}")
+    return None
+
 interpreter = load_model(model_path)
 
 if interpreter:
