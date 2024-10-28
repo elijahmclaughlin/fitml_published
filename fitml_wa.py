@@ -6,36 +6,18 @@ import streamlit as st
 from tempfile import NamedTemporaryFile
 import os
 
-uploaded_model = st.file_uploader("Upload the MoveNet model (.tflite)", type=["tflite"])
+model_path = "/mount/src/fitml_published/movenet.tflite"
+st.write(f"Attempting to load model from: {model_path}")
 
-if uploaded_model:
-    with NamedTemporaryFile(delete=False, suffix=".tflite") as temp_model_file:
-        temp_model_file.write(uploaded_model.read())
-        model_path = temp_model_file.name
+model_path = "/mount/src/fitml_published/movenet.tflite"
 
-    interpreter = tflite.Interpreter(model_path=model_path)
-    interpreter.allocate_tensors()
-    st.success("Model loaded successfully!")
+interpreter = load_model(model_path)
+
+if interpreter:
+    st.write("The model is ready for use.")
 else:
-    st.error("Please upload the MoveNet model (.tflite) to proceed.")
+    st.write("Model loading failed. Please check the log messages above.")
 
-st.write("Files in current directory:", os.listdir('.'))
-
-path_to_model = os.path.join(os.path.dirname(__file__), "movenet.tflite")
-st.write(f"Model path being used: {path_to_model}")
-
-if os.path.isfile(path_to_model):
-    interpreter = tflite.Interpreter(model_path=path_to_model)
-    interpreter.allocate_tensors()
-else:
-    st.error(f"Model file not found at {path_to_model}")
-
-def load_movenet_model():
-    interpreter = tflite.Interpreter(model_path=path_to_model)
-    interpreter.allocate_tensors()
-    return interpreter
-
-movenet_interpreter = load_movenet_model()
 
 def movenet_predict(image, interpreter):
     """Runs pose estimation using the TensorFlow Lite model."""
