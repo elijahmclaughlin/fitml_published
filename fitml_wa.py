@@ -2,7 +2,7 @@ import os
 import numpy as np
 import tflite_runtime.interpreter as tflite
 import cv2
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import streamlit as st
 from tempfile import NamedTemporaryFile
 
@@ -64,13 +64,13 @@ def analyze_deadlift(keypoints):
     deadlift_depth = "Proper Form" if angle < 80 else "Slight Bend" if angle < 120 else "High Bend"
     return angle, deadlift_depth
 
-# keypoint connections
+# Keypoint connections
 connections = [
-    (5, 7), (7, 9), # left arm
-    (6, 8), (8, 10), # right arm
-    (5, 11), (11, 13), (13, 15), # left side
-    (6, 12), (12, 14), (14, 16), # right side
-    (5, 6), (11, 12) # shoulders, hips
+    (5, 7), (7, 9),   # Left arm
+    (6, 8), (8, 10),  # Right arm
+    (5, 11), (11, 13), (13, 15),  # Left side
+    (6, 12), (12, 14), (14, 16),  # Right side
+    (5, 6), (11, 12)  # Shoulders and hips
 ]
 
 st.title("Exercise Analysis with FitML")
@@ -100,7 +100,9 @@ if uploaded_file:
     progress_bar = st.progress(0)
     frame_count = 0
 
-    font = ImageFont.truetype("arial.ttf", 20)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.8
+    font_thickness = 2
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -129,19 +131,23 @@ if uploaded_file:
                     width=3
                 )
 
-        draw.text((50, 50), f'Angle: {int(angle)}', font=font, fill="black", stroke_width=2, stroke_fill="black")
-        draw.text((50, 100), depth, font=font, fill="black", stroke_width=2, stroke_fill="black")
+        frame_processed = cv2.cvtColor(np.array(frame_rgb), cv2.COLOR_RGB2BGR)
 
-        draw.text((50, 50), f'Angle: {int(angle)}', font=font, fill=(255, 255, 255))
-        draw.text((50, 100), depth, font=font, fill=(0, 255, 0))
+        text_position = (50, 50)
+        cv2.putText(frame_processed, f'Angle: {int(angle)}', (text_position[0], text_position[1]),
+                    font, font_scale, (0, 0, 0), font_thickness + 2, lineType=cv2.LINE_AA)
+        cv2.putText(frame_processed, f'Angle: {int(angle)}', (text_position[0], text_position[1]),
+                    font, font_scale, (255, 255, 255), font_thickness, lineType=cv2.LINE_AA)
+
+        text_position_depth = (50, 100)
+        cv2.putText(frame_processed, depth, (text_position_depth[0], text_position_depth[1]),
+                    font, font_scale, (0, 0, 0), font_thickness + 2, lineType=cv2.LINE_AA)
+        cv2.putText(frame_processed, depth, (text_position_depth[0], text_position_depth[1]),
+                    font, font_scale, (0, 255, 0), font_thickness, lineType=cv2.LINE_AA)
 
         for i, (y, x, c) in enumerate(keypoints):
             if c > 0.5:
-                draw.ellipse((x * frame_rgb.width - 5, y * frame_rgb.height - 5,
-                              x * frame_rgb.width + 5, y * frame_rgb.height + 5),
-                             fill=(0, 255, 0))
-
-        frame_processed = cv2.cvtColor(np.array(frame_rgb), cv2.COLOR_RGB2BGR)
+                cv2.circle(frame_processed, (int(x * width), int(y * height)), 5, (0, 255, 0), -1)
 
         out.write(frame_processed)
         
