@@ -3,11 +3,11 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
 import imageio
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import streamlit as st
 from tempfile import NamedTemporaryFile
 
-# Load MoveNet model from TensorFlow Hub
+# MoveNet model from TensorFlow Hub
 model = hub.load("https://www.kaggle.com/models/google/movenet/TensorFlow2/singlepose-lightning/4")
 movenet = model.signatures['serving_default']
 
@@ -16,7 +16,7 @@ def movenet_predict(image):
     input_image = tf.image.resize_with_pad(tf.expand_dims(image, axis=0), 192, 192)
     input_image = tf.cast(input_image, dtype=tf.int32)
     outputs = movenet(input_image)
-    keypoints = outputs['output_0'].numpy().reshape((17, 3))  # Reshape for easier handling
+    keypoints = outputs['output_0'].numpy().reshape((17, 3))  # reshape for easier handling
     return keypoints
 
 def calculate_angle(a, b, c):
@@ -33,9 +33,10 @@ def analyze_squat(keypoints):
     squat_depth = "Deep Squat" if angle < 90 else "Normal Squat" if angle < 120 else "Shallow Squat"
     return angle, squat_depth
 
+# left side keypoints
 def analyze_bench(keypoints):
     """Calculates bench press depth based on shoulder, elbow, and wrist."""
-    shoulder, elbow, wrist = keypoints[5], keypoints[7], keypoints[9]  # LEFT side keypoints
+    shoulder, elbow, wrist = keypoints[5], keypoints[7], keypoints[9]
     angle = calculate_angle(shoulder, elbow, wrist)
     bench_depth = "Full Press" if angle < 90 else "Partial Press" if angle < 150 else "No Full Extension"
     return angle, bench_depth
@@ -48,39 +49,38 @@ def analyze_deadlift(keypoints):
     return angle, deadlift_depth
 
 # Streamlit UI
-st.title("Exercise Analysis App with MoveNet")
+st.title("Exercise Analysis with FitML")
 exercise_type = st.selectbox("Select Exercise", ("Squat", "Bench Press", "Deadlift"))
-uploaded_file = st.file_uploader("Upload an exercise video", type=["mp4", "mov"])
+uploaded_file = st.file_uploader("Upload your exercise video", type=["mp4", "mov"])
 
+# analyzing uploaded video
 if uploaded_file:
-    # Get the original file name and extension
     original_filename = uploaded_file.name
     base_name, ext = os.path.splitext(original_filename)
     output_filename = f"{base_name}_analyzed_fitml{ext}"
     
-    # Save the uploaded video temporarily
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(uploaded_file.read())
         video_path = temp_file.name
 
+    output_path = NamedTemporaryFile(suffix=ext, delete=False).name
+
     reader = imageio.get_reader(video_path, 'ffmpeg')
     fps = reader.get_meta_data()['fps']
-    writer = imageio.get_writer(output_filename, fps=fps)
+    writer = imageio.get_writer(output_path, fps=fps)
 
-    # Add a progress bar
+    # Add progress bar
     progress_bar = st.progress(0)
     total_frames = reader.count_frames()
     frame_count = 0
 
+    # edit video
     for frame in reader:
-        # Convert frame to RGB and PIL Image for manipulation
         frame_rgb = Image.fromarray(frame).convert("RGB")
         frame_np = np.array(frame_rgb)
 
-        # Run pose estimation on the frame
         keypoints = movenet_predict(frame_np)
 
-        # Determine the exercise type and analyze accordingly
         if exercise_type == "Squat":
             angle, depth = analyze_squat(keypoints)
         elif exercise_type == "Bench Press":
@@ -88,29 +88,34 @@ if uploaded_file:
         elif exercise_type == "Deadlift":
             angle, depth = analyze_deadlift(keypoints)
 
-        # Draw on the frame using PIL
         draw = ImageDraw.Draw(frame_rgb)
         draw.text((50, 50), f'Angle: {int(angle)}', fill=(255, 255, 255))
         draw.text((50, 100), depth, fill=(0, 255, 0))
 
-        # Draw keypoints
         for i, (y, x, c) in enumerate(keypoints):
-            if c > 0.5:  # confidence threshold
+            if c > 0.5:
                 draw.ellipse((x * frame_rgb.width - 5, y * frame_rgb.height - 5,
                               x * frame_rgb.width + 5, y * frame_rgb.height + 5),
                              fill=(0, 255, 0))
 
-        # Convert back to numpy array for saving
         frame_with_overlays = np.array(frame_rgb)
         writer.append_data(frame_with_overlays)
         
-        # Update progress bar
+        # progress bar
         frame_count += 1
         progress_bar.progress(frame_count / total_frames)
 
     reader.close()
     writer.close()
 
-    # Display processed video
-    st.video(output_filename)
+    # display video
+    st.video(output_path)
 
+    # download button
+    with open(output_path, "rb") as file:
+        btn = st.download_button(
+            label="Download Analyzed Video",
+            data=file,
+            file_name=output_filename,
+            mime="video/mp4"
+        )
