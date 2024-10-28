@@ -5,8 +5,16 @@ from PIL import Image, ImageDraw
 import streamlit as st
 from tempfile import NamedTemporaryFile
 
+path_to_model = os.path.join(os.path.dirname(__file__), "movenet.tflite")
+if os.path.isfile(model_path):
+    interpreter = tflite.Interpreter(model_path=path_to_model)
+    interpreter.allocate_tensors()
+else:
+    print(f"Model file not found at {model_path}")
+
+
 def load_movenet_model():
-    interpreter = tflite.Interpreter(model_path="movenet.tflite")
+    interpreter = tflite.Interpreter(model_path=path_to_model)
     interpreter.allocate_tensors()
     return interpreter
 
