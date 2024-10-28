@@ -2,11 +2,11 @@ import os
 import numpy as np
 import tflite_runtime.interpreter as tflite
 import cv2
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import streamlit as st
 from tempfile import NamedTemporaryFile
 
-# Load the TFLite model
+# TFLite model
 model_path = "/mount/src/fitml_published/movenet.tflite"
 st.write(f"Attempting to load model from: {model_path}")
 
@@ -64,6 +64,15 @@ def analyze_deadlift(keypoints):
     deadlift_depth = "Proper Form" if angle < 80 else "Slight Bend" if angle < 120 else "High Bend"
     return angle, deadlift_depth
 
+# keypoint connections
+connections = [
+    (5, 7), (7, 9), # left arm
+    (6, 8), (8, 10), # right arm
+    (5, 11), (11, 13), (13, 15), # left side
+    (6, 12), (12, 14), (14, 16), # right side
+    (5, 6), (11, 12) # shoulders, hips
+]
+
 st.title("Exercise Analysis with FitML")
 exercise_type = st.selectbox("Select Exercise", ("Squat", "Bench Press", "Deadlift"))
 uploaded_file = st.file_uploader("Upload your exercise video", type=["mp4", "mov"])
@@ -91,6 +100,8 @@ if uploaded_file:
     progress_bar = st.progress(0)
     frame_count = 0
 
+    font = ImageFont.truetype("arial.ttf", 20)
+
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -108,8 +119,21 @@ if uploaded_file:
             angle, depth = analyze_deadlift(keypoints)
 
         draw = ImageDraw.Draw(frame_rgb)
-        draw.text((50, 50), f'Angle: {int(angle)}', fill=(255, 255, 255))
-        draw.text((50, 100), depth, fill=(0, 255, 0))
+        for start, end in connections:
+            if keypoints[start][2] > 0.5 and keypoints[end][2] > 0.5:
+                y1, x1 = keypoints[start][:2]
+                y2, x2 = keypoints[end][:2]
+                draw.line(
+                    [(x1 * frame_rgb.width, y1 * frame_rgb.height), (x2 * frame_rgb.width, y2 * frame_rgb.height)],
+                    fill=(255, 255, 255),
+                    width=3
+                )
+
+        draw.text((50, 50), f'Angle: {int(angle)}', font=font, fill="black", stroke_width=2, stroke_fill="black")
+        draw.text((50, 100), depth, font=font, fill="black", stroke_width=2, stroke_fill="black")
+
+        draw.text((50, 50), f'Angle: {int(angle)}', font=font, fill=(255, 255, 255))
+        draw.text((50, 100), depth, font=font, fill=(0, 255, 0))
 
         for i, (y, x, c) in enumerate(keypoints):
             if c > 0.5:
