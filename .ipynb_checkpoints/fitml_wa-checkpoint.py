@@ -1,26 +1,26 @@
-import os
-import tensorflow as tf
 import numpy as np
+import tflite_runtime.interpreter as tflite
 import imageio
 from PIL import Image, ImageDraw
 import streamlit as st
 from tempfile import NamedTemporaryFile
 
-# MoveNet Lightning model
 def load_movenet_model():
-    interpreter = tf.lite.Interpreter(model_path="movenet.tflite")
+    interpreter = tflite.Interpreter(model_path="movenet.tflite")
     interpreter.allocate_tensors()
     return interpreter
 
 movenet_interpreter = load_movenet_model()
 
 def movenet_predict(image, interpreter):
-    """Runs pose estimation using a TensorFlow Lite model."""
-    input_image = tf.image.resize_with_pad(image, 192, 192)
-    input_image = tf.cast(input_image, dtype=tf.uint8)
+    """Runs pose estimation using the TensorFlow Lite model."""
+    input_image = np.array(image.resize((192, 192)))
     input_image = np.expand_dims(input_image, axis=0)
+    input_image = np.array(input_image, dtype=np.uint8)
+
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
+
     interpreter.set_tensor(input_details[0]['index'], input_image)
     interpreter.invoke()
     keypoints = interpreter.get_tensor(output_details[0]['index']).reshape((17, 3))
@@ -60,7 +60,7 @@ st.title("Exercise Analysis with FitML")
 exercise_type = st.selectbox("Select Exercise", ("Squat", "Bench Press", "Deadlift"))
 uploaded_file = st.file_uploader("Upload your exercise video", type=["mp4", "mov"])
 
-# analyzing uploaded video
+# obtain and edit video
 if uploaded_file:
     original_filename = uploaded_file.name
     base_name, ext = os.path.splitext(original_filename)
@@ -76,17 +76,15 @@ if uploaded_file:
     fps = reader.get_meta_data()['fps']
     writer = imageio.get_writer(output_path, fps=fps)
 
-    # Add progress bar
     progress_bar = st.progress(0)
     total_frames = reader.count_frames()
     frame_count = 0
 
-    # edit video
+    # editing video, progress bar
     for frame in reader:
         frame_rgb = Image.fromarray(frame).convert("RGB")
-        frame_np = np.array(frame_rgb)
 
-        keypoints = movenet_predict(frame_np)
+        keypoints = movenet_predict(frame_rgb, movenet_interpreter)
 
         if exercise_type == "Squat":
             angle, depth = analyze_squat(keypoints)
@@ -108,7 +106,6 @@ if uploaded_file:
         frame_with_overlays = np.array(frame_rgb)
         writer.append_data(frame_with_overlays)
         
-        # progress bar
         frame_count += 1
         progress_bar.progress(frame_count / total_frames)
 
