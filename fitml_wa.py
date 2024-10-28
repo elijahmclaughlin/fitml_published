@@ -6,9 +6,20 @@ import streamlit as st
 from tempfile import NamedTemporaryFile
 import os
 
-st.write("Files in current directory:", os.listdir('.'))
+uploaded_model = st.file_uploader("Upload the MoveNet model (.tflite)", type=["tflite"])
 
-import os
+if uploaded_model:
+    with NamedTemporaryFile(delete=False, suffix=".tflite") as temp_model_file:
+        temp_model_file.write(uploaded_model.read())
+        model_path = temp_model_file.name
+
+    interpreter = tflite.Interpreter(model_path=model_path)
+    interpreter.allocate_tensors()
+    st.success("Model loaded successfully!")
+else:
+    st.error("Please upload the MoveNet model (.tflite) to proceed.")
+
+st.write("Files in current directory:", os.listdir('.'))
 
 path_to_model = os.path.join(os.path.dirname(__file__), "movenet.tflite")
 st.write(f"Model path being used: {path_to_model}")
@@ -18,7 +29,6 @@ if os.path.isfile(path_to_model):
     interpreter.allocate_tensors()
 else:
     st.error(f"Model file not found at {path_to_model}")
-
 
 def load_movenet_model():
     interpreter = tflite.Interpreter(model_path=path_to_model)
