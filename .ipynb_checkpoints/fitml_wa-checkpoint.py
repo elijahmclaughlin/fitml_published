@@ -7,16 +7,24 @@ from PIL import Image, ImageDraw
 import streamlit as st
 from tempfile import NamedTemporaryFile
 
-# MoveNet model from TensorFlow Hub
-model = hub.load("https://www.kaggle.com/models/google/movenet/TensorFlow2/singlepose-lightning/4")
-movenet = model.signatures['serving_default']
+# MoveNet Lightning model
+def load_movenet_model():
+    interpreter = tf.lite.Interpreter(model_path="movenet.tflite")
+    interpreter.allocate_tensors()
+    return interpreter
 
-def movenet_predict(image):
-    """Runs pose estimation on the image using MoveNet."""
-    input_image = tf.image.resize_with_pad(tf.expand_dims(image, axis=0), 192, 192)
-    input_image = tf.cast(input_image, dtype=tf.int32)
-    outputs = movenet(input_image)
-    keypoints = outputs['output_0'].numpy().reshape((17, 3))  # reshape for easier handling
+movenet_interpreter = load_movenet_model()
+
+def movenet_predict(image, interpreter):
+    """Runs pose estimation using a TensorFlow Lite model."""
+    input_image = tf.image.resize_with_pad(image, 192, 192)
+    input_image = tf.cast(input_image, dtype=tf.uint8)
+    input_image = np.expand_dims(input_image, axis=0)
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+    interpreter.set_tensor(input_details[0]['index'], input_image)
+    interpreter.invoke()
+    keypoints = interpreter.get_tensor(output_details[0]['index']).reshape((17, 3))
     return keypoints
 
 def calculate_angle(a, b, c):

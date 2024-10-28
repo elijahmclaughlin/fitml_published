@@ -1,6 +1,5 @@
 streamlit
-tensorflow==2.6.0
-tensorflow-hub
+tensorflow-cpu==2.4.0
 imageio[ffmpeg]
 Pillow
 numpy
