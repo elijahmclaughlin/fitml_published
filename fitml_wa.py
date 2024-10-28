@@ -133,9 +133,6 @@ if uploaded_file:
     reader.close()
     writer.close()
 
-    # display video
-    st.video(output_path)
-
     # download button
     with open(output_path, "rb") as file:
         btn = st.download_button(
