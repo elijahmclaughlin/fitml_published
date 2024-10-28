@@ -1,0 +1,6 @@
+streamlit
+tensorflow==2.9.1
+tensorflow-hub
+imageio[ffmpeg]
+Pillow
+numpy
