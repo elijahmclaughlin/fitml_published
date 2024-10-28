@@ -1,5 +1,5 @@
 streamlit
-tflite-runtime
+tflite-runtime==2.6.0
 imageio[ffmpeg]
 Pillow
 numpy
