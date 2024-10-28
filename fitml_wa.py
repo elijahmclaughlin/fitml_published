@@ -4,6 +4,7 @@ import imageio
 from PIL import Image, ImageDraw
 import streamlit as st
 from tempfile import NamedTemporaryFile
+import os
 
 path_to_model = os.path.join(os.path.dirname(__file__), "movenet.tflite")
 if os.path.isfile(model_path):
