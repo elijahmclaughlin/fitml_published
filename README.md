@@ -1,7 +1,6 @@
 <img src="https://github.com/elijahmclaughlin/fitml_published/blob/main/fitml.png" alt="Alt Text" style="width:50%; height:auto;">
 
-# FitML
-## Version 1.0 - Initial Release
+# FitML - Release 1.0
 
 ## How To Use
 **Step 1:** Visit [FitML on Streamlit](https://fitmlpublished-sstapfypi8uyjkcmqurcim.streamlit.app/)
