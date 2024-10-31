@@ -3,10 +3,11 @@
 # FitML - Release 1.0
 
 ## How To Use  
-**Step 1:** Visit [FitML on Streamlit](https://fitmlpublished-sstapfypi8uyjkcmqurcim.streamlit.app/)  
-**Step 2:** Select the exercise for analysis  
-**Step 3:** Upload the exercise video (limited to 200MB or about 2 minutes)  
-**Step 4:** Download analyzed video!  
+**Step 5:** Record your exercise (ensure that there are no obstructions in your video)  
+**Step 2:** Visit [FitML on Streamlit](https://fitmlpublished-sstapfypi8uyjkcmqurcim.streamlit.app/)  
+**Step 3:** Select the exercise for analysis  
+**Step 4:** Upload the exercise video (limited to 200MB or about 2 minutes)  
+**Step 5:** Download analyzed video!  
 
 ## Initial Release
 The initial release of FitML includes basic range of motion (ROM) analysis of three exercises: squat, bench press, and deadlift. The current output will overlay a pose estimation of the user. It will also overlay the calculated angle of the exercise in the top left hand corner of the uploaded video, along with the classification of the depth.
